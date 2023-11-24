@@ -1,0 +1,177 @@
+import os
+import re
+import socket
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
+import curses
+import nltk
+import requests
+import socks
+from bs4 import BeautifulSoup
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+
+
+# Download the necessary resources
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+
+
+# Set up Tor proxy
+socks.set_default_proxy(socks.SOCKS5, "localhost", 9150)
+socket.socket = socks.socksocket
+
+
+# Define the base URL for Google search
+base_url = 'https://www.google.com/search?q='
+
+
+# Set the path to your dorks file
+dorks_file_path = "~/process/google_dork_list/google_Dorks.txt"
+dorks_file_path = os.path.expanduser(dorks_file_path)
+
+
+# Initialize the lemmatizer
+lemmatizer = WordNetLemmatizer()
+
+
+# Preprocessing function
+def preprocess_dorks(dorks):
+    preprocessed_dorks = []
+    for dork in dorks:
+        # Tokenization
+        tokens = word_tokenize(dork)
+
+        # Lowercasing
+        tokens = [token.lower() for token in tokens]
+
+        # Removal of special characters
+        tokens = [re.sub(r'[^a-zA-Z0-9]', '', token) for token in tokens]
+
+        # Stopword removal and lemmatization
+        tokens = [lemmatizer.lemmatize(token) for token in tokens if token not in stopwords.words("english")]
+
+        # Join tokens back into a string
+        preprocessed_dork = " ".join(tokens)
+
+        # Append preprocessed dork to the list
+        preprocessed_dorks.append(preprocessed_dork)
+
+    return preprocessed_dorks
+
+
+# Function to perform web scraping for a given Google dork
+def scrape_google_dork(dork):
+    # Create the search query URL
+    search_url = base_url + dork
+
+    # Set User-Agent header
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'
+    }
+
+    try:
+        # Send a GET request to Google search
+        response = requests.get(search_url, headers=headers)
+        response.raise_for_status()
+
+        # Check if the response contains a CAPTCHA page
+        if 'ipv4.google.com/sorry' in response.url:
+            print('CAPTCHA detected. Please try again later.')
+            return []
+
+        # Check if the response contains a rate limit page
+        if 'google.com/sorry/IndexRedirect?' in response.url:
+            print('Rate limit exceeded. Please try again later.')
+            return []
+
+        # Parse the HTML content using BeautifulSoup
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Extract the search results (example: extracting page titles and URLs)
+        search_results = soup.find_all('div', class_='yuRUbf')
+
+        # Process and return the search results
+        results = []
+        for result in search_results:
+            title = result.find('h3').text
+            url = result.find('a')['href']
+            results.append({'title': title, 'url': url})
+
+        return results
+    except requests.exceptions.RequestException as e:
+        print('Error occurred while scraping:', e)
+        return []
+
+
+# Function to write search results to a file
+def write_results_to_file(results, output_file_path):
+    try:
+        with open(output_file_path, 'a') as file:
+            for result in results:
+                file.write(f"Title: {result['title']}\nURL: {result['url']}\n\n")
+    except IOError as e:
+        print('Error occurred while writing to file:', e)
+
+
+# Function to perform keyword searching on the gathered data
+def perform_keyword_search(results, keyword):
+    matching_results = []
+    for result in results:
+        if keyword in result['title'] or keyword in result['url']:
+            matching_results.append(result)
+    return matching_results
+
+
+# TUI function for main execution
+def main(stdscr):
+    # Clear the screen
+    stdscr.clear()
+
+    # Set up the TUI
+    stdscr.addstr(0, 0, "Google Dork Scraper")
+    stdscr.addstr(2, 0, "Enter a keyword to search:")
+    stdscr.refresh()
+
+    # Get the keyword from the user
+    keyword = stdscr.getstr(3, 0).decode('utf-8')
+
+    # Read the dorks fromthe file
+    with open(dorks_file_path, 'r') as file:
+        dorks = file.read().splitlines()
+
+    # Preprocess the dorks
+    preprocessed_dorks = preprocess_dorks(dorks)
+
+    # Create a ThreadPoolExecutor for parallel scraping
+    with ThreadPoolExecutor() as executor:
+        # Use partial to pass keyword argument to the scrape_google_dork function
+        scrape_func = partial(scrape_google_dork, keyword=keyword)
+
+        # Map the scraping function to the preprocessed dorks
+        results = executor.map(scrape_func, preprocessed_dorks)
+
+    # Flatten the results from the executor
+    results = [result for sublist in results for result in sublist if result]
+
+    # Perform keyword searching on the gathered data
+    matching_results = perform_keyword_search(results, keyword)
+
+    # Display the matching results
+    stdscr.addstr(5, 0, "Matching Results:")
+    row = 7
+    for result in matching_results:
+        stdscr.addstr(row, 0, f"Title: {result['title']}")
+        stdscr.addstr(row + 1, 0, f"URL: {result['url']}")
+        row += 3
+
+    stdscr.refresh()
+    stdscr.getch()
+
+
+# Run the main function
+if __name__ == '__main__':
+    curses.wrapper(main)
