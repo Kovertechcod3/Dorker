@@ -1,87 +1,92 @@
-import concurrent.futures
+import argparse
+import concurrent.futures 
+from selenium import webdriver
+from bs4 import BeautifulSoup
 import re
 import json
-import redis
-import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup
-import docker
 
-# Multithreading executor
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)  
+# Dork types for CLI
+dork_types = {
+  'site': ['site:', 'inurl:', 'intitle:'],
+  'file': ['filetype:', 'ext:'],
+  'misc': ['intext:', '-intext:', 'allintext:']  
+}
 
-# Redis cache
-redis_cache = redis.Redis(host='localhost', port=6379, db=0)
+def build_dork():
 
-# Regex for data extraction
-EMAIL_REGEX = r'([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)'
-SSN_REGEX = r'\d{3}-?\d{2}-?\d{4}'
+  print("Build your custom Google dork query")
+  
+  dork = ''
+  dork_type = input("Select dork type (site, file, misc): ")
 
-# Selenium browser docker container
-chrome_container = docker.from_env().containers.run("selenium/standalone-chrome", detach=True)
+  if dork_type in dork_types:
+    terms = dork_types[dork_type]
+    term = input(f"Select term ({', '.join(terms)}): ")
+
+    if term in terms:
+      value = input(f"Enter value for {term}: ")
+      dork = f"{term} {value}"
+
+  if not dork:
+    print("Invalid dork query constructed!")
+  else:
+    print(f"Dork query: {dork}")
+  
+  return dork
+
+# Selenium driver
+driver = webdriver.Chrome()
+
+# Single thread executor
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+# Simplified email regex  
+EMAIL_REGEX = r'\w+@\w+\.\w+'
 
 def dork_search(query):
 
-  # Check cache    
-  if redis_cache.exists(query):
-    return json.loads(redis_cache.get(query))
-  
-  results = []  
+  results = []
 
-  # Headless Chrome options
-  chrome_options = Options()
-  chrome_options.add_argument("--headless")
-  chrome_options.add_argument("--no-sandbox")
-
-  # Initialize Chrome browser
-  driver = webdriver.Remote(command_executor=chrome_container.id, options=chrome_options)
-
-  # Perform search
   search_url = f'https://www.google.com/search?q={query}'
-  driver.get(search_url)  
+  driver.get(search_url)
 
-  # Parse results
   soup = BeautifulSoup(driver.page_source, 'html.parser')
-  for result in soup.select('.g'):
-      
-    # Extract info from each page
+
+  for result in soup.select('.g')[:10]:
     data = parse_result(driver, result)
     results.append(data)
-
-  # Cache for 12 hours
-  serialized_results = json.dumps(results)
-  redis_cache.set(query, serialized_results, ex=43200)
 
   return results
 
 def parse_result(driver, result):
 
-  # Get title, link, snippet
   title = result.select_one('h3').text
-  link = result.select_one('a')['href']
   snippet = result.select_one('.VwiC3b').text
 
-  # Retrieve page content  
-  driver.get(link)
+  driver.get(result.a['href'])
   content = driver.page_source
 
-  # Extract email, SSN  
   emails = re.findall(EMAIL_REGEX, content)
-  ssns = re.findall(SSN_REGEX, content)
 
   data = {
     'title': title,
-    'link': link, 
-    'snippet': snippet,
-    'emails': emails,
-    'ssns': ssns
+    'snippet': snippet, 
+    'emails': emails
   }
 
   return data
-  
-# Sample usage  
-future = executor.submit(dork_search, 'intext:"admin" inurl:"php"')
-results = future.result()
 
-print(json.dumps(results, indent=2))
+if __name__ == '__main__':
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-q", "--query", help="Search query")
+  args = parser.parse_args()
+
+  if args.query:
+    dork = args.query
+  else:
+    dork = build_dork()
+
+  results = dork_search(dork)
+
+  print(json.dumps(results, indent=2))
