@@ -1,37 +1,49 @@
+"""
+Text preprocessing module
+"""
+
 import re
-import nltk
+import configparser
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 
-# Download the necessary resources
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-# Initialize the lemmatizer
-lemmatizer = WordNetLemmatizer()
+STOPWORDS = set(config['preprocessing']['stopwords'].split(','))
 
+def clean(text):
+    """Lowercase and remove special chars from text"""
+    text = text.lower()
+    return re.sub(r'[^a-zA-Z0-9]', '', text)
 
-def preprocess_dorks(dorks):
-    preprocessed_dorks = []
-    for dork in dorks:
-        # Tokenization
-        tokens = word_tokenize(dork)
+def tokenize(text):
+    """Tokenize text into words"""
+    try:
+        words = word_tokenize(text)
+        return words
+    except ValueError as e:
+        print(f"Tokenization error: {e}")
+        return []
 
-        # Lowercasing
-        tokens = [token.lower() for token in tokens]
+def remove_stopwords(words):
+    """Remove stopwords from list of word tokens"""
+    return [w for w in words if w not in STOPWORDS]   
 
-        # Removal of special characters
-        tokens = [re.sub(r'[^a-zA-Z0-9]', '', token) for token in tokens]
+def lemmatize(words):
+    """Lemmatize a list of word tokens"""
+    lemmatizer = WordNetLemmatizer()
+    lemmas = [lemmatizer.lemmatize(w) for w in words]
+    return lemmas
 
-        # Stopword removal and lemmatization
-        tokens = [lemmatizer.lemmatize(token) for token in tokens if token not in stopwords.words("english")]
-
-        # Join tokens back into a string
-        preprocessed_dork = " ".join(tokens)
-
-        # Append preprocessed dork to the list
-        preprocessed_dorks.append(preprocessed_dork)
-
-    return preprocessed_dorks
+def preprocess(text):
+    """Preprocess text by cleaning, normalizing and formatting"""
+    if not isinstance(text, str):
+        raise TypeError('Text input must be a string')
+        
+    text = clean(text)
+    words = tokenize(text)
+    words = remove_stopwords(words)
+    lemmas = lemmatize(words)
+    return " ".join(lemmas)
