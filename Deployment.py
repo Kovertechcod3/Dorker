@@ -1,30 +1,42 @@
 import os
 import shutil
+import configparser
 
+CONFIG_FILE = 'deploy.conf'
 
-def deploy_application():
-    # Create a deployment directory
-    deployment_dir = "deployment"
-    os.makedirs(deployment_dir, exist_ok=True)
+def load_config():
+  config = configparser.ConfigParser()
+  config.read(CONFIG_FILE)
+  return config['deploy']
+  
+def deploy_application(deploy_dir):
 
-    # Copy necessary files to the deployment directory
-    shutil.copy("main_script.py", deployment_dir)
-    shutil.copy("preprocessing.py", deployment_dir)
-    shutil.copy("search.py", deployment_dir)
-    shutil.copy("processing.py", deployment_dir)
+  if not os.path.exists(deploy_dir):
+    os.makedirs(deploy_dir)
 
-    # Any additional files or resources needed can be copied here
+  try:
+    cfg = load_config()
 
-    print("Application deployed successfully.")
+    copy_list = [f.strip() for f in cfg.get('copy', '').split(',')]
+    for f in copy_list:
+      shutil.copy(f, deploy_dir)
 
+    source_dir = cfg.get('source_dir')
+    if source_dir:
+      shutil.copytree(source_dir, os.path.join(deploy_dir, 'source'))
 
-def cleanup_deployment():
-    # Remove the deployment directory
-    deployment_dir = "deployment"
-    shutil.rmtree(deployment_dir, ignore_errors=True)
+  except OSError as e:
+    print("Deployment failed:", e)
 
-    print("Deployment directory cleaned up.")
+def cleanup(deploy_dir):
+  shutil.rmtree(deploy_dir, ignore_errors=True)
+  
+if __name__ == '__main__':
 
+  cfg = load_config()
+  deploy_dir = cfg.get('dir', 'deploy')
 
-if __name__ == "__main__":
-    deploy_application()
+  deploy_application(deploy_dir)
+
+  # test cleanup
+  # cleanup(deploy_dir)
