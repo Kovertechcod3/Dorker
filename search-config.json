@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "description": "Configuration for search application",
+  
+  "type": "object",
+  
+  "required": [
+    "search_url",
+    "user_agent",
+    "dorks_file"
+  ],
+
+  "properties": {
+  
+    "search_url": {
+      "type": "string",
+      "default": "https://www.google.com"  
+    },
+    
+    "user_agent": {
+      "type": "string",
+      "default": "My App v1.0"
+    },
+    
+    "dorks_file": {
+      "type": "string" 
+    },
+    
+    "results_per_page": {
+      "type": "integer",
+      "default": 10
+    }
+  }
+}
