@@ -1,92 +1,56 @@
 import argparse
-import concurrent.futures 
-from selenium import webdriver
-from bs4 import BeautifulSoup
-import re
 import json
+from nltk.stem import PorterStemmer
+from nltk.corpus import wordnet
+import re
+import logging
+import search
 
-# Dork types for CLI
-dork_types = {
-  'site': ['site:', 'inurl:', 'intitle:'],
-  'file': ['filetype:', 'ext:'],
-  'misc': ['intext:', '-intext:', 'allintext:']  
-}
+stemmer = PorterStemmer()
 
-def build_dork():
-
-  print("Build your custom Google dork query")
+def get_synonyms(word):
+    synonyms = set()
   
-  dork = ''
-  dork_type = input("Select dork type (site, file, misc): ")
-
-  if dork_type in dork_types:
-    terms = dork_types[dork_type]
-    term = input(f"Select term ({', '.join(terms)}): ")
-
-    if term in terms:
-      value = input(f"Enter value for {term}: ")
-      dork = f"{term} {value}"
-
-  if not dork:
-    print("Invalid dork query constructed!")
-  else:
-    print(f"Dork query: {dork}")
+    for syn in wordnet.synsets(word):
+        for l in syn.lemmas():
+            synonyms.add(l.name())
   
-  return dork
+    return synonyms
 
-# Selenium driver
-driver = webdriver.Chrome()
+def search_keywords(results, keyword):
+    keyword = keyword.lower()
+    synonyms = get_synonyms(keyword)
+  
+    ranked_results = []
 
-# Single thread executor
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    for result in results:
+        title = result['title'].lower()
+        snippet = result['snippet'].lower()
 
-# Simplified email regex  
-EMAIL_REGEX = r'\w+@\w+\.\w+'
+        stemmed_title = [stemmer.stem(w) for w in title.split()]
+        stemmed_snippet = [stemmer.stem(w) for w in snippet.split()]
 
-def dork_search(query):
+        if any(s in stemmed_title for s in [keyword] + list(synonyms)) or any(s in stemmed_snippet for s in [keyword] + list(synonyms)):
+            count = len(re.findall(keyword, title + snippet))
+            ranked_results.append((result, count))
 
-  results = []
-
-  search_url = f'https://www.google.com/search?q={query}'
-  driver.get(search_url)
-
-  soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-  for result in soup.select('.g')[:10]:
-    data = parse_result(driver, result)
-    results.append(data)
-
-  return results
-
-def parse_result(driver, result):
-
-  title = result.select_one('h3').text
-  snippet = result.select_one('.VwiC3b').text
-
-  driver.get(result.a['href'])
-  content = driver.page_source
-
-  emails = re.findall(EMAIL_REGEX, content)
-
-  data = {
-    'title': title,
-    'snippet': snippet, 
-    'emails': emails
-  }
-
-  return data
+    ranked_results.sort(key=lambda x: x[1], reverse=True)
+  
+    return [result for result, count in ranked_results]
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
 
-  parser = argparse.ArgumentParser()
-  parser.add_argument("-q", "--query", help="Search query")
-  args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("keyword", help="Keyword to search")
+    args = parser.parse_args()
 
-  if args.query:
-    dork = args.query
-  else:
-    dork = build_dork()
+    keyword = args.keyword
+    dork = input("Enter dork query: ")
 
-  results = dork_search(dork)
-
-  print(json.dumps(results, indent=2))
+    try:
+        results = search.dork_search(dork)  # Assuming dork_search() is defined in search.py
+        results = search_keywords(results, keyword)
+        print(json.dumps(results, indent=2))
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
