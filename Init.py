@@ -6,6 +6,7 @@ Provides modules for scraping, processing, and deploying data.
 
 __version__ = "1.0.0"
 
+import logging
 
 from .preprocessing import preprocess_dorks
 from .search import scrape_google_search
@@ -22,15 +23,19 @@ __all__ = [
 
 def main():
     """Executes basic workflow example"""
-    
-    dorks = preprocess_dorks()
-    search_results = scrape_google_search(dorks)
-    keywords = perform_keyword_search(search_results)
-    
-    deploy_dir = 'website'
-    deploy_application(deploy_dir)
-    
-    print(f"Version {__version__}")
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+    try:
+        dorks = preprocess_dorks()
+        search_results = scrape_google_search(dorks)
+        keywords = perform_keyword_search(search_results)
+
+        deploy_dir = 'website'
+        deploy_application(deploy_dir)
+
+        logging.info(f"Version {__version__}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
 
 if __name__ == '__main__':
     main()
