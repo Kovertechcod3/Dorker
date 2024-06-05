@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { ArtworkService } from "../artwork.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { ArtworkCreateInput } from "./ArtworkCreateInput";
 import { Artwork } from "./Artwork";
 import { ArtworkFindManyArgs } from "./ArtworkFindManyArgs";
 import { ArtworkWhereUniqueInput } from "./ArtworkWhereUniqueInput";
 import { ArtworkUpdateInput } from "./ArtworkUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class ArtworkControllerBase {
-  constructor(protected readonly service: ArtworkService) {}
+  constructor(
+    protected readonly service: ArtworkService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Artwork })
+  @nestAccessControl.UseRoles({
+    resource: "Artwork",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createArtwork(
     @common.Body() data: ArtworkCreateInput
   ): Promise<Artwork> {
@@ -40,9 +58,18 @@ export class ArtworkControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Artwork] })
   @ApiNestedQuery(ArtworkFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Artwork",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async artworks(@common.Req() request: Request): Promise<Artwork[]> {
     const args = plainToClass(ArtworkFindManyArgs, request.query);
     return this.service.artworks({
@@ -55,9 +82,18 @@ export class ArtworkControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Artwork })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Artwork",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async artwork(
     @common.Param() params: ArtworkWhereUniqueInput
   ): Promise<Artwork | null> {
@@ -77,9 +113,18 @@ export class ArtworkControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Artwork })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Artwork",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateArtwork(
     @common.Param() params: ArtworkWhereUniqueInput,
     @common.Body() data: ArtworkUpdateInput
@@ -107,6 +152,14 @@ export class ArtworkControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Artwork })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Artwork",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteArtwork(
     @common.Param() params: ArtworkWhereUniqueInput
   ): Promise<Artwork | null> {

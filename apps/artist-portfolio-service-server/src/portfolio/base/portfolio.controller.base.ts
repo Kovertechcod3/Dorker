@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { PortfolioService } from "../portfolio.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { PortfolioCreateInput } from "./PortfolioCreateInput";
 import { Portfolio } from "./Portfolio";
 import { PortfolioFindManyArgs } from "./PortfolioFindManyArgs";
 import { PortfolioWhereUniqueInput } from "./PortfolioWhereUniqueInput";
 import { PortfolioUpdateInput } from "./PortfolioUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class PortfolioControllerBase {
-  constructor(protected readonly service: PortfolioService) {}
+  constructor(
+    protected readonly service: PortfolioService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Portfolio })
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createPortfolio(
     @common.Body() data: PortfolioCreateInput
   ): Promise<Portfolio> {
@@ -40,9 +58,18 @@ export class PortfolioControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Portfolio] })
   @ApiNestedQuery(PortfolioFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async portfolios(@common.Req() request: Request): Promise<Portfolio[]> {
     const args = plainToClass(PortfolioFindManyArgs, request.query);
     return this.service.portfolios({
@@ -55,9 +82,18 @@ export class PortfolioControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Portfolio })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async portfolio(
     @common.Param() params: PortfolioWhereUniqueInput
   ): Promise<Portfolio | null> {
@@ -77,9 +113,18 @@ export class PortfolioControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Portfolio })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updatePortfolio(
     @common.Param() params: PortfolioWhereUniqueInput,
     @common.Body() data: PortfolioUpdateInput
@@ -107,6 +152,14 @@ export class PortfolioControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Portfolio })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deletePortfolio(
     @common.Param() params: PortfolioWhereUniqueInput
   ): Promise<Portfolio | null> {

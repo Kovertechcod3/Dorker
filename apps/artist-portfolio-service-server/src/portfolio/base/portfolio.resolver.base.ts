@@ -13,16 +13,31 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { Portfolio } from "./Portfolio";
 import { PortfolioCountArgs } from "./PortfolioCountArgs";
 import { PortfolioFindManyArgs } from "./PortfolioFindManyArgs";
 import { PortfolioFindUniqueArgs } from "./PortfolioFindUniqueArgs";
 import { DeletePortfolioArgs } from "./DeletePortfolioArgs";
 import { PortfolioService } from "../portfolio.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Portfolio)
 export class PortfolioResolverBase {
-  constructor(protected readonly service: PortfolioService) {}
+  constructor(
+    protected readonly service: PortfolioService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "read",
+    possession: "any",
+  })
   async _portfoliosMeta(
     @graphql.Args() args: PortfolioCountArgs
   ): Promise<MetaQueryPayload> {
@@ -32,14 +47,26 @@ export class PortfolioResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Portfolio])
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "read",
+    possession: "any",
+  })
   async portfolios(
     @graphql.Args() args: PortfolioFindManyArgs
   ): Promise<Portfolio[]> {
     return this.service.portfolios(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Portfolio, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "read",
+    possession: "own",
+  })
   async portfolio(
     @graphql.Args() args: PortfolioFindUniqueArgs
   ): Promise<Portfolio | null> {
@@ -51,6 +78,11 @@ export class PortfolioResolverBase {
   }
 
   @graphql.Mutation(() => Portfolio)
+  @nestAccessControl.UseRoles({
+    resource: "Portfolio",
+    action: "delete",
+    possession: "any",
+  })
   async deletePortfolio(
     @graphql.Args() args: DeletePortfolioArgs
   ): Promise<Portfolio | null> {

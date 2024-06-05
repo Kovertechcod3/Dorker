@@ -21,7 +21,11 @@ import { ArtistList } from "./artist/ArtistList";
 import { ArtistCreate } from "./artist/ArtistCreate";
 import { ArtistEdit } from "./artist/ArtistEdit";
 import { ArtistShow } from "./artist/ArtistShow";
-import { jwtAuthProvider } from "./auth-provider/ra-auth-jwt";
+import { UserList } from "./user/UserList";
+import { UserCreate } from "./user/UserCreate";
+import { UserEdit } from "./user/UserEdit";
+import { UserShow } from "./user/UserShow";
+import { httpAuthProvider } from "./auth-provider/ra-auth-http";
 
 const App = (): React.ReactElement => {
   const [dataProvider, setDataProvider] = useState<DataProvider | null>(null);
@@ -42,7 +46,7 @@ const App = (): React.ReactElement => {
       <Admin
         title={"ArtistPortfolioService"}
         dataProvider={dataProvider}
-        authProvider={jwtAuthProvider}
+        authProvider={httpAuthProvider}
         theme={theme}
         dashboard={Dashboard}
         loginPage={Login}
@@ -74,6 +78,13 @@ const App = (): React.ReactElement => {
           edit={ArtistEdit}
           create={ArtistCreate}
           show={ArtistShow}
+        />
+        <Resource
+          name="User"
+          list={UserList}
+          edit={UserEdit}
+          create={UserCreate}
+          show={UserShow}
         />
       </Admin>
     </div>

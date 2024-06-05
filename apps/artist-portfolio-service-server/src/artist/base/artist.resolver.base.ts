@@ -13,16 +13,31 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { Artist } from "./Artist";
 import { ArtistCountArgs } from "./ArtistCountArgs";
 import { ArtistFindManyArgs } from "./ArtistFindManyArgs";
 import { ArtistFindUniqueArgs } from "./ArtistFindUniqueArgs";
 import { DeleteArtistArgs } from "./DeleteArtistArgs";
 import { ArtistService } from "../artist.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Artist)
 export class ArtistResolverBase {
-  constructor(protected readonly service: ArtistService) {}
+  constructor(
+    protected readonly service: ArtistService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Artist",
+    action: "read",
+    possession: "any",
+  })
   async _artistsMeta(
     @graphql.Args() args: ArtistCountArgs
   ): Promise<MetaQueryPayload> {
@@ -32,12 +47,24 @@ export class ArtistResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Artist])
+  @nestAccessControl.UseRoles({
+    resource: "Artist",
+    action: "read",
+    possession: "any",
+  })
   async artists(@graphql.Args() args: ArtistFindManyArgs): Promise<Artist[]> {
     return this.service.artists(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Artist, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Artist",
+    action: "read",
+    possession: "own",
+  })
   async artist(
     @graphql.Args() args: ArtistFindUniqueArgs
   ): Promise<Artist | null> {
@@ -49,6 +76,11 @@ export class ArtistResolverBase {
   }
 
   @graphql.Mutation(() => Artist)
+  @nestAccessControl.UseRoles({
+    resource: "Artist",
+    action: "delete",
+    possession: "any",
+  })
   async deleteArtist(
     @graphql.Args() args: DeleteArtistArgs
   ): Promise<Artist | null> {
