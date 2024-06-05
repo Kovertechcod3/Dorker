@@ -6,6 +6,7 @@ import { ArtworkModule } from "./artwork/artwork.module";
 import { PortfolioModule } from "./portfolio/portfolio.module";
 import { ArtistModule } from "./artist/artist.module";
 import { UserModule } from "./user/user.module";
+import { PaymentsModule } from "./Payments/payments.module";
 import { HealthModule } from "./health/health.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { SecretsManagerModule } from "./providers/secrets/secretsManager.module";
@@ -31,6 +32,7 @@ import { AuthModule } from "./auth/auth.module";
     PortfolioModule,
     ArtistModule,
     UserModule,
+    PaymentsModule,
     HealthModule,
     PrismaModule,
     SecretsManagerModule,
