@@ -4,11 +4,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 def setup_logging(log_file='app.log', log_level=logging.INFO):
+    """Set up logging with file rotation and console output."""
     logger = logging.getLogger()
     logger.setLevel(log_level)
 
     # File handler with rotation
-    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3)
+    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5)
     file_handler.setLevel(log_level)
 
     # Console handler
@@ -25,6 +26,7 @@ def setup_logging(log_file='app.log', log_level=logging.INFO):
     logger.addHandler(console_handler)
 
 def load_config(config_file=None):
+    """Load configuration from a JSON file."""
     if config_file is None:
         config_file = os.getenv('CONFIG_FILE', 'config.json')
 
@@ -42,13 +44,15 @@ def load_config(config_file=None):
     return config
 
 def get_config_value(config, key, default=None):
+    """Retrieve a configuration value with a default fallback."""
     value = config.get(key, default)
     if value is None:
         logging.warning(f"No value found for key '{key}' in config. Using default value '{default}'")
     return value
 
 def validate_config(config):
-    required_fields = ['base_url', 'dorks_file', 'data_dir', 'headers']
+    """Validate the configuration for required fields and correct formats."""
+    required_fields = ['search_url', 'dorks_file', 'deploy_dir', 'headers']
     
     for field in required_fields:
         if field not in config or not config[field]:
@@ -56,32 +60,35 @@ def validate_config(config):
             raise ValueError(f"{field} is required in the configuration")
     
     # Additional validation
-    if not config['base_url'].startswith('http'):
-        logging.error("Invalid base_url in configuration")
-        raise ValueError("base_url must be a valid URL")
+    if not config['search_url'].startswith('http'):
+        logging.error("Invalid search_url in configuration")
+        raise ValueError("search_url must be a valid URL")
     
-    if not os.path.isdir(config['data_dir']):
-        logging.error("Invalid data_dir in configuration")
-        raise ValueError("data_dir must be a valid directory path")
+    if not os.path.isdir(config['deploy_dir']):
+        logging.error("Invalid deploy_dir in configuration")
+        raise ValueError("deploy_dir must be a valid directory path")
 
-# Set up logging
-setup_logging()
+def main():
+    """Main function to set up logging, load, and validate configuration."""
+    # Set up logging
+    config = load_config()
+    log_file = get_config_value(config, 'log_file', 'app.log')
+    log_level = get_config_value(config, 'log_level', logging.INFO)
+    setup_logging(log_file=log_file, log_level=log_level)
 
-# Load configuration from json
-config = load_config()
+    # Validate config
+    validate_config(config)
 
-# Get URLs
-base_url = get_config_value(config, 'base_url')
-dorks_file = get_config_value(config, 'dorks_file')
-data_dir = get_config_value(config, 'data_dir')
-dorks_file_path = os.path.join(data_dir, dorks_file)
+    # Get configuration values
+    search_url = get_config_value(config, 'search_url')
+    dorks_file = get_config_value(config, 'dorks_file')
+    deploy_dir = get_config_value(config, 'deploy_dir')
+    headers = get_config_value(config, 'headers', default={'User-Agent': 'Mozilla/5.0'})
+    
+    # Example usage of configuration values
+    dorks_file_path = os.path.join(deploy_dir, dorks_file)
+    logging.info(f"Using search URL: {search_url}")
+    logging.info(f"Dorks file path: {dorks_file_path}")
 
-# Get headers
-default_headers = {'User-Agent': 'Mozilla/5.0'}
-headers = get_config_value(config, 'headers', default=default_headers)
-
-# Get log level
-log_level = get_config_value(config, 'log_level', default=logging.INFO)
-
-# Validate config
-validate_config(config)
+if __name__ == '__main__':
+    main()
