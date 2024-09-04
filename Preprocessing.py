@@ -1,30 +1,49 @@
 """
-Text preprocessing module
+Text Preprocessing Module
+
+Provides functions for cleaning, tokenizing, removing stopwords, and lemmatizing text.
 """
 
 import re
 import configparser
+import logging
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
-import logging
+import nltk
 
-config = configparser.ConfigParser()
-config.read('config.ini')
+# Ensure necessary NLTK data is downloaded
+nltk.download('punkt', quiet=True)
+nltk.download('wordnet', quiet=True)
+nltk.download('stopwords', quiet=True)
 
-STOPWORDS = set(config['preprocessing'].get('stopwords', '').split(','))
+def load_stopwords(config_file='config.ini'):
+    """Load stopwords from configuration file or use NLTK default stopwords"""
+    config = configparser.ConfigParser()
+    if not config.read(config_file):
+        logging.warning(f"Config file '{config_file}' not found or empty. Using NLTK default stopwords.")
+        return set(stopwords.words('english'))
+
+    stopwords_list = config['preprocessing'].get('stopwords', '')
+    if stopwords_list:
+        return set(stopwords_list.split(','))
+    else:
+        logging.warning("No stopwords specified in config. Using NLTK default stopwords.")
+        return set(stopwords.words('english'))
+
+STOPWORDS = load_stopwords()
 
 def clean(text):
-    """Lowercase and remove special chars from text"""
+    """Lowercase and remove special characters from text, preserving spaces"""
     text = text.lower()
-    return re.sub(r'[^a-zA-Z0-9]', '', text)
+    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
 
 def tokenize(text):
     """Tokenize text into words"""
     try:
         words = word_tokenize(text)
         return words
-    except ValueError as e:
+    except Exception as e:
         logging.error(f"Tokenization error: {e}")
         return []
 
@@ -39,7 +58,7 @@ def lemmatize(words):
     return lemmas
 
 def preprocess(text):
-    """Preprocess text by cleaning, normalizing and formatting"""
+    """Preprocess text by cleaning, tokenizing, removing stopwords, and lemmatizing"""
     if not isinstance(text, str):
         raise TypeError('Text input must be a string')
 
