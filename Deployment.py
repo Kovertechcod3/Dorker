@@ -2,15 +2,43 @@ import os
 import shutil
 import configparser
 import logging
+from logging.handlers import RotatingFileHandler
 
 CONFIG_FILE = 'deploy.conf'
 
-def setup_logging():
-    logging.basicConfig(filename='deploy.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+def setup_logging(log_file='deploy.log', log_level=logging.INFO):
+    logger = logging.getLogger()
+    logger.setLevel(log_level)
 
-def load_config():
+    # File handler with rotation
+    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3)
+    file_handler.setLevel(log_level)
+
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+
+    # Formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+def load_config(config_file=CONFIG_FILE):
     config = configparser.ConfigParser()
-    config.read(CONFIG_FILE)
+    if not os.path.exists(config_file):
+        logging.error(f"Config file '{config_file}' not found")
+        raise FileNotFoundError(f"Config file '{config_file}' not found")
+
+    config.read(config_file)
+    
+    if 'deploy' not in config:
+        logging.error("Missing 'deploy' section in configuration")
+        raise ValueError("Configuration must contain a 'deploy' section")
+    
     return config['deploy']
 
 def validate_config(config):
@@ -27,10 +55,11 @@ def deploy_application(deploy_dir):
 
         cfg = load_config()
 
-        copy_list = [f.strip() for f in cfg.get('copy', '').split(',')]
+        copy_list = [f.strip() for f in cfg.get('copy', '').split(',') if f.strip()]
         for f in copy_list:
             if os.path.isfile(f):
                 shutil.copy(f, deploy_dir)
+                logging.info(f"Copied '{f}' to '{deploy_dir}'")
             else:
                 logging.warning(f"File '{f}' not found. Skipping copy.")
 
@@ -38,6 +67,7 @@ def deploy_application(deploy_dir):
         if source_dir:
             if os.path.isdir(source_dir):
                 shutil.copytree(source_dir, os.path.join(deploy_dir, 'source'))
+                logging.info(f"Copied directory '{source_dir}' to '{os.path.join(deploy_dir, 'source')}'")
             else:
                 logging.warning(f"Source directory '{source_dir}' not found. Skipping copy.")
 
@@ -55,11 +85,14 @@ def cleanup(deploy_dir):
 
 if __name__ == '__main__':
     setup_logging()
-    config = load_config()
-    deploy_dir = config.get('dir', 'deploy')
+    try:
+        config = load_config()
+        deploy_dir = config.get('dir', 'deploy')
 
-    validate_config(config)
-    deploy_application(deploy_dir)
+        validate_config(config)
+        deploy_application(deploy_dir)
 
-    # test cleanup
-    # cleanup(deploy_dir)
+        # Uncomment the following line to test cleanup
+        # cleanup(deploy_dir)
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
