@@ -1,30 +1,46 @@
 {
-
   "logging": {
     "version": 1,
+    "disable_existing_loggers": false,
     "formatters": {
       "default": {
-        "format": "[%(asctime)s] %(levelname)s: %(message)s"  
+        "format": "[%(asctime)s] %(levelname)s: %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S"
+      },
+      "detailed": {
+        "format": "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)d] %(message)s",
+        "datefmt": "%Y-%m-%d %H:%M:%S"
       }
     },
-
     "handlers": {
       "file": {
         "class": "logging.handlers.RotatingFileHandler",
         "level": "INFO",
         "filename": "app.log",
-        "maxBytes": 1024,
-        "backupCount": 3,
-        "formatter": "default"
+        "maxBytes": 10485760,  # 10 MB
+        "backupCount": 5,
+        "formatter": "detailed"
+      },
+      "console": {
+        "class": "logging.StreamHandler",
+        "level": "DEBUG",
+        "formatter": "default",
+        "stream": "ext://sys.stdout"
       }
     },
-
     "root": {
-      "level": "INFO",
+      "level": "DEBUG",
       "handlers": [
-        "file"
+        "file",
+        "console"
       ]
+    },
+    "loggers": {
+      "my_module": {
+        "level": "DEBUG",
+        "handlers": ["file", "console"],
+        "propagate": false
+      }
     }
   }
-
 }
