@@ -1,31 +1,41 @@
+"""
+Keyword Search Module
+
+Provides functionality to search and rank keywords in search results using synonyms and stemming.
+"""
+
 import argparse
 import json
-from nltk.stem import PorterStemmer
-from nltk.corpus import wordnet
 import re
 import logging
+from nltk.stem import PorterStemmer
+from nltk.corpus import wordnet
+import nltk
 import search
 
+# Ensure necessary NLTK data is downloaded
+nltk.download('wordnet', quiet=True)
+
+# Initialize the Porter Stemmer
 stemmer = PorterStemmer()
 
 def get_synonyms(word):
+    """Retrieve a set of synonyms for a given word using WordNet."""
     synonyms = set()
-  
     for syn in wordnet.synsets(word):
-        for l in syn.lemmas():
-            synonyms.add(l.name())
-  
+        for lemma in syn.lemmas():
+            synonyms.add(lemma.name())
     return synonyms
 
 def search_keywords(results, keyword):
+    """Search and rank search results based on the presence of a keyword and its synonyms."""
     keyword = keyword.lower()
     synonyms = get_synonyms(keyword)
-  
     ranked_results = []
 
     for result in results:
-        title = result['title'].lower()
-        snippet = result['snippet'].lower()
+        title = result.get('title', '').lower()
+        snippet = result.get('snippet', '').lower()
 
         stemmed_title = [stemmer.stem(w) for w in title.split()]
         stemmed_snippet = [stemmer.stem(w) for w in snippet.split()]
@@ -35,13 +45,13 @@ def search_keywords(results, keyword):
             ranked_results.append((result, count))
 
     ranked_results.sort(key=lambda x: x[1], reverse=True)
-  
     return [result for result, count in ranked_results]
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+def main():
+    """Main function to execute the keyword search process."""
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Search for keywords in dork search results.")
     parser.add_argument("keyword", help="Keyword to search")
     args = parser.parse_args()
 
@@ -49,8 +59,16 @@ if __name__ == '__main__':
     dork = input("Enter dork query: ")
 
     try:
-        results = search.dork_search(dork)  # Assuming dork_search() is defined in search.py
+        logging.info("Performing dork search")
+        results = search.dork_search(dork)
+
+        logging.info("Searching for keyword and synonyms")
         results = search_keywords(results, keyword)
+
+        logging.info("Search completed. Displaying results:")
         print(json.dumps(results, indent=2))
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+        logging.error(f"An error occurred during processing: {str(e)}")
+
+if __name__ == '__main__':
+    main()
