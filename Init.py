@@ -9,6 +9,7 @@ __version__ = "1.0.0"
 import logging
 import os
 import json
+from logging.handlers import RotatingFileHandler
 from .preprocessing import preprocess_dorks
 from .search import scrape_google_search
 from .processing import perform_keyword_search
@@ -18,16 +19,17 @@ __all__ = [
     'preprocess_dorks',
     'scrape_google_search',
     'perform_keyword_search',
-    'deploy_application', 
+    'deploy_application',
     'cleanup_deployment'
 ]
 
 def setup_logging(log_file='application.log', log_level=logging.INFO):
+    """Set up logging with file rotation and console output."""
     logger = logging.getLogger()
     logger.setLevel(log_level)
 
     # File handler with rotation
-    file_handler = logging.FileHandler(log_file)
+    file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5)
     file_handler.setLevel(log_level)
 
     # Console handler
@@ -44,6 +46,7 @@ def setup_logging(log_file='application.log', log_level=logging.INFO):
     logger.addHandler(console_handler)
 
 def load_config(config_file='config.json'):
+    """Load configuration from a JSON file."""
     if not os.path.exists(config_file):
         logging.error(f"Config file '{config_file}' not found")
         raise FileNotFoundError(f"Config file '{config_file}' not found")
@@ -58,12 +61,14 @@ def load_config(config_file='config.json'):
     return config
 
 def main():
-    """Executes basic workflow example"""
-    setup_logging()
+    """Main function to execute the application workflow."""
+    # Load configuration
+    config = load_config()
+    log_file = config.get('log_file', 'application.log')
+    log_level = config.get('log_level', logging.INFO)
+    setup_logging(log_file=log_file, log_level=log_level)
 
     try:
-        # Load configuration
-        config = load_config()
         deploy_dir = config.get('deploy_dir', 'website')
 
         # Execute workflow
