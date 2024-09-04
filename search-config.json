@@ -1,35 +1,79 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-
-  "description": "Configuration for search application",
-  
+  "description": "Configuration for the comprehensive search and deployment tool",
   "type": "object",
-  
   "required": [
     "search_url",
     "user_agent",
-    "dorks_file"
+    "dorks_file",
+    "deploy_dir"
   ],
-
   "properties": {
-  
     "search_url": {
       "type": "string",
-      "default": "https://www.google.com"  
+      "format": "uri",
+      "default": "https://www.google.com",
+      "description": "The base URL used for search queries."
     },
-    
     "user_agent": {
       "type": "string",
-      "default": "My App v1.0"
+      "default": "My App v1.0",
+      "description": "The user agent string to be used for HTTP requests."
     },
-    
     "dorks_file": {
-      "type": "string" 
+      "type": "string",
+      "description": "Path to the file containing search dorks."
     },
-    
     "results_per_page": {
       "type": "integer",
-      "default": 10
+      "minimum": 1,
+      "default": 10,
+      "description": "Number of search results to retrieve per page."
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 30,
+      "description": "Timeout in seconds for search requests."
+    },
+    "retries": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 3,
+      "description": "Number of times to retry a failed search request."
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Additional HTTP headers to include in search requests."
+    },
+    "proxy": {
+      "type": "string",
+      "format": "uri",
+      "description": "Proxy server URL to route requests through, if needed."
+    },
+    "deploy_dir": {
+      "type": "string",
+      "description": "Directory where the application will be deployed."
+    },
+    "log_file": {
+      "type": "string",
+      "default": "app.log",
+      "description": "Path to the log file."
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "default": "INFO",
+      "description": "Logging level for the application."
+    },
+    "cleanup_after_deploy": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether to clean up deployment directory after deployment."
     }
-  }
+  },
+  "additionalProperties": false
 }
