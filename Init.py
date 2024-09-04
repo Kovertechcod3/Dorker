@@ -25,7 +25,7 @@ __all__ = [
 
 def setup_logging(log_file='application.log', log_level=logging.INFO):
     """Set up logging with file rotation and console output."""
-    logger = logging.getLogger()
+    logger = logging.getLogger(__name__)
     logger.setLevel(log_level)
 
     # File handler with rotation
