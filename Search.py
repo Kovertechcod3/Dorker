@@ -25,6 +25,7 @@ def get_synonyms(word):
     for syn in wordnet.synsets(word):
         for lemma in syn.lemmas():
             synonyms.add(lemma.name())
+    logging.debug(f"Synonyms for '{word}': {synonyms}")
     return synonyms
 
 def search_keywords(results, keyword):
@@ -43,6 +44,7 @@ def search_keywords(results, keyword):
         if any(s in stemmed_title for s in [keyword] + list(synonyms)) or any(s in stemmed_snippet for s in [keyword] + list(synonyms)):
             count = len(re.findall(keyword, title + snippet))
             ranked_results.append((result, count))
+            logging.debug(f"Keyword '{keyword}' found {count} times in result: {result}")
 
     ranked_results.sort(key=lambda x: x[1], reverse=True)
     return [result for result, count in ranked_results]
