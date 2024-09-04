@@ -18,7 +18,7 @@ nltk.download('wordnet', quiet=True)
 nltk.download('stopwords', quiet=True)
 
 def load_stopwords(config_file='config.ini'):
-    """Load stopwords from configuration file or use NLTK default stopwords"""
+    """Load stopwords from configuration file or use NLTK default stopwords."""
     config = configparser.ConfigParser()
     if not config.read(config_file):
         logging.warning(f"Config file '{config_file}' not found or empty. Using NLTK default stopwords.")
@@ -34,36 +34,46 @@ def load_stopwords(config_file='config.ini'):
 STOPWORDS = load_stopwords()
 
 def clean(text):
-    """Lowercase and remove special characters from text, preserving spaces"""
+    """Lowercase and remove special characters from text, preserving spaces."""
+    if not isinstance(text, str):
+        logging.error("Input text must be a string.")
+        raise TypeError("Input text must be a string.")
+    
     text = text.lower()
-    return re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    cleaned_text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    logging.debug(f"Cleaned text: {cleaned_text}")
+    return cleaned_text
 
 def tokenize(text):
-    """Tokenize text into words"""
+    """Tokenize text into words."""
     try:
         words = word_tokenize(text)
+        logging.debug(f"Tokenized words: {words}")
         return words
     except Exception as e:
         logging.error(f"Tokenization error: {e}")
         return []
 
 def remove_stopwords(words):
-    """Remove stopwords from list of word tokens"""
-    return [w for w in words if w not in STOPWORDS]
+    """Remove stopwords from list of word tokens."""
+    filtered_words = [w for w in words if w not in STOPWORDS]
+    logging.debug(f"Words after stopword removal: {filtered_words}")
+    return filtered_words
 
 def lemmatize(words):
-    """Lemmatize a list of word tokens"""
+    """Lemmatize a list of word tokens."""
     lemmatizer = WordNetLemmatizer()
     lemmas = [lemmatizer.lemmatize(w) for w in words]
+    logging.debug(f"Lemmatized words: {lemmas}")
     return lemmas
 
 def preprocess(text):
-    """Preprocess text by cleaning, tokenizing, removing stopwords, and lemmatizing"""
-    if not isinstance(text, str):
-        raise TypeError('Text input must be a string')
-
+    """Preprocess text by cleaning, tokenizing, removing stopwords, and lemmatizing."""
+    logging.info("Starting text preprocessing.")
     text = clean(text)
     words = tokenize(text)
     words = remove_stopwords(words)
     lemmas = lemmatize(words)
-    return " ".join(lemmas)
+    processed_text = " ".join(lemmas)
+    logging.info("Text preprocessing completed.")
+    return processed_text
